@@ -3,12 +3,25 @@
  */
 
 import type { Env, SearchResult } from './types';
-import type { SearchPlugin } from './plugins/types';
+import type { SearchContext, SearchPlugin } from './plugins/types';
 
 export interface SchedulerOutcome {
   results: SearchResult[];
   sources: Record<string, number>;
   errors: string[];
+  debug: string[];
+}
+
+/** 子请求预算：Workers 免费版 50 fetch/请求，给 HTML 详情页留全局份额 */
+function makeBudget(total: number): SearchContext['budget'] {
+  let left = total;
+  return {
+    take(): boolean {
+      if (left <= 0) return false;
+      left--;
+      return true;
+    },
+  };
 }
 
 export async function runSearch(
@@ -16,7 +29,9 @@ export async function runSearch(
   keyword: string,
   env: Env,
 ): Promise<SchedulerOutcome> {
-  const settled = await Promise.allSettled(plugins.map((p) => p.search(keyword, env)));
+  const debug: string[] = [];
+  const ctx: SearchContext = { budget: makeBudget(22), debug };
+  const settled = await Promise.allSettled(plugins.map((p) => p.search(keyword, env, ctx)));
 
   const results: SearchResult[] = [];
   const sources: Record<string, number> = {};
@@ -35,7 +50,7 @@ export async function runSearch(
     }
   });
 
-  return { results, sources, errors };
+  return { results, sources, errors, debug };
 }
 
 /** 按 unique_id 去重 */
