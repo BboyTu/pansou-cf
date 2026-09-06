@@ -100,6 +100,8 @@ app.get('/api/search', async (c) => {
   let merged: SearchResult[];
   let cached = false;
   let sources: Record<string, number> | undefined;
+  let debug: string[] | undefined;
+  const wantDebug = c.req.query('debug') === '1';
   const cacheHit = !refresh && c.env.CACHE ? await getJSON<SearchResult[]>(c.env, cacheKey) : null;
   if (cacheHit) {
     merged = cacheHit;
@@ -109,6 +111,7 @@ app.get('/api/search', async (c) => {
     const outcome = await runSearch(plugins, kw, c.env);
     merged = dedupe(outcome.results);
     sources = outcome.sources;
+    if (wantDebug) debug = outcome.debug;
     // 写缓存（KV 缺失时 putJSON 内部直接跳过）
     await putJSON(c.env, cacheKey, merged);
   }
@@ -132,6 +135,7 @@ app.get('/api/search', async (c) => {
       merged_by_type: mergeByType(merged),
       ...(cached ? { cached: true } : {}),
       ...(sources ? { sources } : {}),
+      ...(debug && debug.length > 0 ? { debug } : {}),
     },
   });
 });
