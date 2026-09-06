@@ -12,7 +12,7 @@ export interface SchedulerOutcome {
   debug: string[];
 }
 
-/** 子请求预算：Workers 免费版 50 fetch/请求，给 HTML 详情页留全局份额 */
+/** 子请求预算：Workers 免费版 50 fetch/请求（KV 占 1-2），HTML 详情页共享 30 份额 */
 function makeBudget(total: number): SearchContext['budget'] {
   let left = total;
   return {
@@ -30,7 +30,7 @@ export async function runSearch(
   env: Env,
 ): Promise<SchedulerOutcome> {
   const debug: string[] = [];
-  const ctx: SearchContext = { budget: makeBudget(22), debug };
+  const ctx: SearchContext = { budget: makeBudget(30), debug };
   const settled = await Promise.allSettled(plugins.map((p) => p.search(keyword, env, ctx)));
 
   const results: SearchResult[] = [];

@@ -1,6 +1,6 @@
 {
   "name": "pansou-cf",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "private": false,
   "description": "PanSou 免费版 @ Cloudflare Workers — 插件化网盘/磁力链搜索，兼容原版 /api/search 协议",
   "type": "module",
