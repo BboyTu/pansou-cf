@@ -1,6 +1,7 @@
 name = "pansou-cf"
 main = "src/index.ts"
-compatibility_date = "2026-09-07"
+compatibility_date = "2026-09-06"
+account_id = "f7eafea308297a86743f819e5826595d"
 
 # KV 缓存（用户已创建：pansou）
 [[kv_namespaces]]
