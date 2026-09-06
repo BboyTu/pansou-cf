@@ -35,6 +35,14 @@
 |---|---|---|
 | `apibay` | 磁力链 | ThePirateBay 官方镜像 API，纯 JSON，按做种数排序 |
 | `pansearch` | 网盘聚合 | 移植原版 pansearch 插件：夸克/UC/百度/阿里/迅雷/天翼/115/123 等 |
+| `quarkres` | 夸克 | squark.cc.cd（TG @quark_res 数据面），链接实时校验过 |
+| `ikantv` | 多网盘 | api.naspt.vip 公开搜索 |
+| `meitizy` | 多网盘 | apis.451024.xyz 影视资源 |
+| `hunhepan` | 多网盘 | 混合盘系 4 个 API 聚合（hunhepan/qkpanso/kuake8/misoso） |
+| `quark4k` | 夸克 | quark4k.com（Flarum 论坛，4K 资源） |
+| `ouge` | 多网盘 | 欧哥资源（苹果CMS vod API） |
+| `cyg` | 多网盘 | 次元狗（源站已加 401 认证，暂不可用保留代码） |
+| `nyaa` | 磁力链 | nyaa.si（源站屏蔽 CF 数据中心 IP，暂不可用保留代码） |
 
 新增源：在 `src/plugins/` 新建文件实现 `SearchPlugin` 接口，到 `registry.ts` 注册一行即可。
 
@@ -145,10 +153,11 @@ dist-web/               # pansou-web 构建产物（Workers Assets 托管，不�
 | v0.01 | 2026-09-07 | 项目初始化：Hono 入口 + /api/search 占位 |
 | v0.02 | 2026-09-07 | 真实搜索：apibay 磁力链 + pansearch 网盘聚合；KV 缓存；allSettled 并发调度 |
 | v0.03 | 2026-09-07 | Web 界面（pansou-web 前端 @ Workers Assets）；/api/health；merged_by_type；cloud_types 过滤 |
+| v0.04 | 2026-09-07 | 插件扩容：新增 quarkres/ikantv/meitizy/hunhepan/quark4k/ouge/cyg/nyaa（8 个，共 10 源） |
 
 ## 路线图
 
-- **v0.04**：增加夸克系独立搜索源；pansearch 多页抓取
+- **v0.05**：继续移植原版 HTML 解析类插件（muou/xiaozhang/zxzj 等）；pansearch 多页抓取
 - **v0.05**：Cron Triggers 预热热词
 - **v0.06**：链接有效性检测（/api/check/links 实装）
 
