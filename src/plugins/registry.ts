@@ -17,6 +17,7 @@ import { melost } from './melost';
 import { sousou } from './sousou';
 import { zxzj } from './zxzj';
 import { ting77 } from './ting77';
+import { dyyjv } from './dyyjv';
 import { makeHtmlPlugin } from './html/engine';
 import { HTML_SITES } from './html/sites';
 
@@ -35,6 +36,7 @@ export const PLUGINS: SearchPlugin[] = [
   sousou,
   zxzj,
   ting77,
+  dyyjv,
   // HTML 站点（通用引擎批量生成）
   ...HTML_SITES.map(makeHtmlPlugin),
 ];

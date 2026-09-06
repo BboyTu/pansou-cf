@@ -24,6 +24,20 @@ function makeBudget(total: number): SearchContext['budget'] {
   };
 }
 
+/**
+ * 无效链接过滤 — 标题/正文带"分享已取消/链接失效"等字样的结果直接丢弃。
+ * 借鉴 my-pansou 的关键词过滤思路（2026-09-07）。
+ */
+const INVALID_CONTENT_RE =
+  /该分享已被取消|分享已被取消|分享已取消|分享的文件已经被取消|链接已失效|分享链接已失效|该链接无法访问|此内容因违规无法|该内容无法查看|文件已经被删除|你访问的页面不存在/;
+
+function filterInvalid(list: SearchResult[]): SearchResult[] {
+  return list.filter((r) => {
+    const text = `${r.title ?? ''} ${r.content ?? ''}`;
+    return !INVALID_CONTENT_RE.test(text);
+  });
+}
+
 export async function runSearch(
   plugins: SearchPlugin[],
   keyword: string,
@@ -40,7 +54,7 @@ export async function runSearch(
   settled.forEach((outcome, i) => {
     const plugin = plugins[i];
     if (outcome.status === 'fulfilled') {
-      const list = outcome.value;
+      const list = filterInvalid(outcome.value);
       sources[plugin.name] = list.length;
       results.push(...list);
     } else {
