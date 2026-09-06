@@ -1,23 +1,15 @@
 name = "pansou-cf"
 main = "src/index.ts"
 compatibility_date = "2026-09-07"
-compatibility_flags = ["nodejs_compat"]
 
-# v0.01：KV 命名空间先留空，部署前用 `wrangler kv:namespace create CACHE` 创建后填回
-# [[kv_namespaces]]
-# binding = "CACHE"
-# id = "待填"
-
-# 可选：D1 数据库（频道元数据，后续版本启用）
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "pansou-cf"
-# database_id = "待填"
+# KV 缓存（用户已创建：pansou）
+[[kv_namespaces]]
+binding = "CACHE"
+id = "b53422454d744d0c8af9d10ec92e06b5"
 
 [vars]
 ENV = "production"
-VERSION = "v0.01"
+VERSION = "v0.02"
 
-# 日志级别
 [observability]
 enabled = true
