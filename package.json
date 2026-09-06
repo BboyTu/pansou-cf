@@ -1,6 +1,6 @@
 {
   "name": "pansou-cf",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": false,
   "description": "PanSou 免费版 @ Cloudflare Workers — 插件化网盘/磁力链搜索，兼容原版 /api/search 协议",
   "type": "module",
@@ -23,7 +23,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240605.0",
     "typescript": "^5.5.0",
-    "wrangler": "^3.65.0"
+    "wrangler": "^4.129.0"
   },
   "dependencies": {
     "hono": "^4.4.0"
