@@ -13,6 +13,8 @@ import { quark4k } from './quark4k';
 import { ouge } from './ouge';
 import { cyg } from './cyg';
 import { nyaa } from './nyaa';
+import { makeHtmlPlugin } from './html/engine';
+import { HTML_SITES } from './html/sites';
 
 export const PLUGINS: SearchPlugin[] = [
   apibay,
@@ -25,6 +27,8 @@ export const PLUGINS: SearchPlugin[] = [
   ouge,
   cyg,
   nyaa,
+  // HTML 站点（通用引擎批量生成）
+  ...HTML_SITES.map(makeHtmlPlugin),
 ];
 
 /** 所有可用 channel 名 */
