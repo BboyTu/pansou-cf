@@ -43,6 +43,10 @@
 | `ouge` | 多网盘 | 欧哥资源（苹果CMS vod API） |
 | `cyg` | 多网盘 | 次元狗（源站已加 401 认证，暂不可用保留代码） |
 | `nyaa` | 磁力链 | nyaa.si（源站屏蔽 CF 数据中心 IP，暂不可用保留代码） |
+| `zhizhen` | 多网盘 | 指针影视（AppleCMS vod 路由，通用 HTML 引擎） |
+| `duoduo` | 多网盘 | 多多影视（AppleCMS） |
+| `erxiao` | 多网盘 | 二小影视（AppleCMS） |
+| `gaoqing888` | 夸克 | 高清888（4K 影视） |
 
 新增源：在 `src/plugins/` 新建文件实现 `SearchPlugin` 接口，到 `registry.ts` 注册一行即可。
 
@@ -154,10 +158,12 @@ dist-web/               # pansou-web 构建产物（Workers Assets 托管，不�
 | v0.02 | 2026-09-07 | 真实搜索：apibay 磁力链 + pansearch 网盘聚合；KV 缓存；allSettled 并发调度 |
 | v0.03 | 2026-09-07 | Web 界面（pansou-web 前端 @ Workers Assets）；/api/health；merged_by_type；cloud_types 过滤 |
 | v0.04 | 2026-09-07 | 插件扩容：新增 quarkres/ikantv/meitizy/hunhepan/quark4k/ouge/cyg/nyaa（8 个，共 10 源） |
+| v0.05 | 2026-09-07 | 通用 HTML 抓取引擎 + 子请求预算管理器；新增 zhizhen/duoduo/erxiao/gaoqing888（共 14 源）；?debug=1 诊断参数 |
 
 ## 路线图
 
-- **v0.05**：继续移植原版 HTML 解析类插件（muou/xiaozhang/zxzj 等）；pansearch 多页抓取
+- **v0.06+**：加密签名类插件（haitunsou/miosou 等 9 个活源）；GB18030 编码站（dygang）；候选池见 `src/plugins/html/sites.ts` 注释
+  - 已排除：muou/hdmoli（源站拦截 CF 出口 IP）、xiaozhang（详情页 302 到已废域名）、leso/clmao/rrbt（反爬）
 - **v0.05**：Cron Triggers 预热热词
 - **v0.06**：链接有效性检测（/api/check/links 实装）
 
