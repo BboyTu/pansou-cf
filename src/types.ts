@@ -54,7 +54,22 @@ export interface SearchResult {
   size?: string;
   /** 热度（做种数/热度值，用于排序展示） */
   hot?: number;
+  /** 来源频道名（TG 源用，网盘插件源可空） */
+  channel?: string;
+  /** 标签 */
+  tags?: string[];
   links: SearchLink[];
+}
+
+/**
+ * 按网盘类型合并的结果项（pansou-web 前端展示用）
+ */
+export interface MergedResultItem {
+  url: string;
+  password?: string;
+  note: string;
+  datetime?: string;
+  source?: string;
 }
 
 /**
@@ -66,6 +81,8 @@ export interface SearchResponse {
   data: {
     total: number;
     results: SearchResult[];
+    /** 按网盘类型合并的链接视图（pansou-web 前端依赖） */
+    merged_by_type?: Record<string, MergedResultItem[]>;
     /** 本次来自缓存的渠道（调试用） */
     cached?: boolean;
     /** 各渠道结果数（调试用） */
