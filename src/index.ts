@@ -1,122 +1,94 @@
 /**
- * pansou-cf — v0.01
+ * pansou-cf — v0.02
  *
- * Cloudflare Workers 入口。基于 Hono 实现 PanSou 兼容的 /api/search 接口。
- *
- * v0.01 仅实现接口骨架，搜索逻辑在后续版本补齐。
+ * Cloudflare Workers 免费版。插件化网盘/磁力链搜索，兼容 PanSou /api/search 协议。
+ * 无 TG 源、无常驻进程；KV 缓存可选（绑定缺失时自动降级直连）。
  */
 
 import { Hono } from 'hono';
-
-/**
- * 环境变量绑定类型。KV / D1 等后续版本启用后在此扩展。
- */
-export interface Env {
-  ENV: string;
-  VERSION: string;
-  // CACHE?: KVNamespace;     // v0.02+
-  // DB?: D1Database;          // v0.04+
-}
-
-/**
- * 搜索结果链接（兼容 PanSou 协议）
- */
-interface SearchLink {
-  type: 'quark' | 'uc' | 'baidu' | 'aliyun' | 'magnet' | 'ed2k' | 'others';
-  url: string;
-  password?: string;
-}
-
-/**
- * 搜索结果条目（兼容 PanSou 协议）
- */
-interface SearchResult {
-  title: string;
-  links: SearchLink[];
-}
-
-/**
- * /api/search 响应体（兼容 PanSou 协议）
- */
-interface SearchResponse {
-  code: number;
-  message: string;
-  data: {
-    total: number;
-    results: SearchResult[];
-  };
-}
+import type { Env, SearchResponse, SearchResult } from './types';
+import { PLUGINS, CHANNELS } from './plugins/registry';
+import { runSearch, dedupe } from './scheduler';
+import { getJSON, putJSON, aggKey } from './cache';
 
 const app = new Hono<{ Bindings: Env }>();
 
-/**
- * 健康检查
- */
+/** 健康检查 */
 app.get('/', (c) => {
   return c.json({
     name: 'pansou-cf',
-    version: c.env.VERSION,
-    env: c.env.ENV,
+    version: c.env.VERSION ?? 'dev',
+    env: c.env.ENV ?? 'dev',
+    channels: CHANNELS,
+    cache: c.env.CACHE ? 'kv' : 'disabled',
     endpoints: ['/api/search'],
   });
 });
 
 /**
- * 网盘搜索接口（PanSou 兼容）
+ * 网盘/磁力链搜索（PanSou 协议兼容）
  *
  * Query:
- *   - kw          (required)  搜索关键词
- *   - channels    (optional)  渠道过滤，逗号分隔：quark,uc,baidu,aliyun,magnet
- *   - concurrency (optional)  并发数，默认 10
- *   - refresh     (optional)  强制刷新缓存，默认 false
+ *   - kw       (required) 搜索关键词
+ *   - channels (optional) 逗号分隔渠道过滤，如 "apibay,pansearch"；默认全部
+ *   - refresh  (optional) "true" 跳过聚合缓存强制刷新
  */
-app.get('/api/search', (c) => {
-  const kw = c.req.query('kw');
-  const channels = c.req.query('channels');
-  const concurrency = Number(c.req.query('concurrency') ?? 10);
+app.get('/api/search', async (c) => {
+  const kw = (c.req.query('kw') ?? '').trim();
+  const channelsParam = (c.req.query('channels') ?? '').trim();
   const refresh = c.req.query('refresh') === 'true';
 
-  // 关键词必填校验
-  if (!kw || kw.trim() === '') {
+  if (!kw) {
     return c.json<SearchResponse>(
-      {
-        code: 400,
-        message: 'kw is required',
-        data: { total: 0, results: [] },
-      },
+      { code: 400, message: 'kw is required', data: { total: 0, results: [] } },
       400,
     );
   }
 
-  // v0.01 仅返回空结果，搜索逻辑在 v0.02+ 补齐
+  // 渠道选择
+  let plugins = PLUGINS;
+  if (channelsParam) {
+    const wanted = new Set(channelsParam.split(',').map((s) => s.trim()).filter(Boolean));
+    const filtered = PLUGINS.filter((p) => wanted.has(p.name));
+    if (filtered.length > 0) plugins = filtered;
+  }
+  const channelKey = plugins.map((p) => p.name).sort().join(',');
+
+  // 聚合缓存
+  const cacheKey = aggKey(kw, channelKey);
+  if (!refresh && c.env.CACHE) {
+    const hit = await getJSON<SearchResult[]>(c.env, cacheKey);
+    if (hit) {
+      return c.json<SearchResponse>({
+        code: 0,
+        message: 'ok',
+        data: { total: hit.length, results: hit, cached: true },
+      });
+    }
+  }
+
+  // 并发调度全部插件
+  const { results, sources } = await runSearch(plugins, kw, c.env);
+  const merged = dedupe(results);
+
+  // 写缓存（KV 缺失时 putJSON 内部直接跳过）
+  await putJSON(c.env, cacheKey, merged);
+
   return c.json<SearchResponse>({
     code: 0,
     message: 'ok',
-    data: {
-      total: 0,
-      results: [],
-    },
+    data: { total: merged.length, results: merged, sources },
   });
 });
 
-/**
- * 404 兜底
- */
-app.notFound((c) => {
-  return c.json({ code: 404, message: 'not found' }, 404);
-});
+/** 404 兜底 */
+app.notFound((c) => c.json({ code: 404, message: 'not found' }, 404));
 
-/**
- * 全局错误处理
- */
+/** 全局错误兜底 */
 app.onError((err, c) => {
-  console.error(`[pansou-cf] unhandled error: ${err.message}`);
+  console.error(`[pansou-cf] unhandled: ${err.message}`);
   return c.json<SearchResponse>(
-    {
-      code: 500,
-      message: 'internal error',
-      data: { total: 0, results: [] },
-    },
+    { code: 500, message: 'internal error', data: { total: 0, results: [] } },
     500,
   );
 });
