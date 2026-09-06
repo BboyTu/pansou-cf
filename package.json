@@ -1,23 +1,22 @@
 {
   "name": "pansou-cf",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": false,
-  "description": "PanSou 的 Cloudflare Workers 移植版 — 网盘搜索聚合 API 跑在 CF 边缘",
+  "description": "PanSou 免费版 @ Cloudflare Workers — 插件化网盘/磁力链搜索，兼容原版 /api/search 协议",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "typecheck": "tsc --noEmit",
-    "version:bump": "node -e \"console.log(require('./package.json').version)\""
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "pansou",
     "cloudflare-workers",
     "netdisk-search",
-    "hono",
-    "typescript"
+    "magnet",
+    "hono"
   ],
   "author": "BboyTu",
   "license": "MIT",
