@@ -119,11 +119,14 @@ dist-web/               # pansou-web 构建产物（已入库，Git 部署需要
 **方式一：Cloudflare Workers**
 
 1. Fork/导入本仓库到你的 GitHub
-2. Cloudflare Dashboard → Workers & Pages → 创建 Worker（或选现有）→ **Settings → Build → Connect Git repository**，选仓库和 `main` 分支
-3. 构建命令留空，部署命令默认 `npx wrangler deploy`（无编译步骤，TS 由 wrangler 直接打包）
-4. 保存后 **push 即自动部署**（构建约 1 分钟）；KV 绑定按 `wrangler.toml` 的 `[[kv_namespaces]]` 自动生效
+2. **KV 缓存（二选一）**：
+   - 要缓存：创建一个 KV 命名空间（Dashboard → Storage & Databases → KV，或 `npx wrangler kv namespace create CACHE`），把它的 id 替换到 `wrangler.toml` 的 `[[kv_namespaces]]` 里
+   - 不要缓存：直接删除 `wrangler.toml` 里的 `[[kv_namespaces]]` 段，程序自动降级为直连搜索
+3. Cloudflare Dashboard → Workers & Pages → 创建 Worker（或选现有）→ **Settings → Build → Connect Git repository**，选仓库和 `main` 分支
+4. 构建命令留空，部署命令默认 `npx wrangler deploy`（无编译步骤，TS 由 wrangler 直接打包）
+5. 保存后 **push 即自动部署**（构建约 1 分钟）
 
-> 注意：`dist-web/` 必须在仓库里（已入库），否则部署缺前端。
+> 注意：`dist-web/` 必须在仓库里（已入库），否则部署缺前端。KV 命名空间的 id 是账号级的，仓库里预置的 id 在你的账号下不存在，务必按上一步替换或删除。
 
 **方式二：本地 wrangler**
 
