@@ -2,7 +2,7 @@
 
 > PanSou @ Cloudflare Workers — 插件化网盘/磁力链搜索 + Web 界面，兼容原版 [/api/search](https://github.com/fish2018/pansou) 协议
 
-[![Version](https://img.shields.io/badge/version-v0.08-blue)](#版本记录)
+[![Version](https://img.shields.io/badge/version-v0.08-blue)](https://github.com/BboyTu/pansou-cf/commits/main)
 [![Runtime](https://img.shields.io/badge/Cloudflare-Workers-orange?logo=cloudflare)](https://workers.cloudflare.com/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -136,26 +136,6 @@ npx wrangler deploy
 KV 如需自建：`npx wrangler kv namespace create CACHE`，替换 `wrangler.toml` 中的 id。
 
 大陆访问 `*.workers.dev` 域名可能不稳定，建议绑定自定义域名（Workers 控制台 → Settings → Domains & Routes，CF 自动发 SSL）。
-
-## 版本记录
-
-| 版本 | 日期 | 说明 |
-|---|---|---|
-| v0.01 | 2026-09-07 | 项目初始化：Hono 入口 + /api/search 占位 |
-| v0.02 | 2026-09-07 | 真实搜索：磁力链 + 网盘聚合源；KV 缓存；allSettled 并发调度 |
-| v0.03 | 2026-09-07 | Web 界面（pansou-web 前端 @ Workers Assets）；健康检查；merged_by_type；类型过滤 |
-| v0.04 | 2026-09-07 | 插件扩至 10 个 |
-| v0.05 | 2026-09-07 | 通用 HTML 抓取引擎 + 子请求预算管理器；扩至 14 源；?debug=1 诊断参数 |
-| v0.06 | 2026-09-07 | 新增 4 个搜索源（共 18 源）；子请求预算 22→30 |
-| v0.07 | 2026-09-07 | 新增 1 个搜索源（共 19 源）；无效链接关键词过滤 |
-| v0.08 | 2026-09-07 | 插件熔断器（失败 ≥3 次熔断 5 分钟，双层失败信号）；迁移 Git 集成自动部署 |
-
-## 路线图
-
-- 加密签名类插件（9 个活源，需逐个啃签名算法）
-- 链接有效性检测（/api/check/links 实装，分平台探活 + 分级 TTL 缓存）
-- D1 累积资源库（搜索结果沉淀，先查本地库绕开源站不稳定）
-- Cron Triggers 预热热词
 
 ## 致谢
 
