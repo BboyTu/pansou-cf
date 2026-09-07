@@ -14,14 +14,18 @@ export const nyaa: SearchPlugin = {
   name: 'nyaa',
   priority: 3,
 
-  async search(keyword: string, _env: Env): Promise<SearchResult[]> {
+  async search(keyword: string, _env: Env, ctx?): Promise<SearchResult[]> {
     try {
       const url = `${SITE}/?f=0&c=0_0&q=${encodeURIComponent(keyword)}`;
       const resp = await fetch(url, {
         headers: { 'User-Agent': 'pansou-cf/0.04', Accept: 'text/html' },
         signal: AbortSignal.timeout(15_000),
       });
-      if (!resp.ok) return [];
+      if (!resp.ok) {
+        // 源站屏蔽 CF 数据中心 IP（v0.04 确认），主动上报供熔断器计数
+        ctx?.fail(`HTTP ${resp.status}`);
+        return [];
+      }
 
       const html = await resp.text();
       const out: SearchResult[] = [];
@@ -73,7 +77,8 @@ export const nyaa: SearchPlugin = {
         if (out.length >= 60) break;
       }
       return out;
-    } catch {
+    } catch (e) {
+      ctx?.fail(String(e).slice(0, 80));
       return [];
     }
   },

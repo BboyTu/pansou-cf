@@ -17,6 +17,12 @@ export interface SearchContext {
   budget: { take(): boolean };
   /** 诊断信息（?debug=1 时返回给调用方） */
   debug?: string[];
+  /**
+   * 插件主动上报失败（供熔断器计数）。
+   * 适用场景：HTTP 非 200、站点明确反爬/限流等持续性故障。
+   * 偶发的单次抓取失败不必上报，调度器只对抛出的异常自动计数。
+   */
+  fail(reason?: string): void;
 }
 
 export interface SearchPlugin {

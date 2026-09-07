@@ -107,8 +107,8 @@ app.get('/api/search', async (c) => {
     merged = cacheHit;
     cached = true;
   } else {
-    // 并发调度全部插件
-    const outcome = await runSearch(plugins, kw, c.env);
+    // 并发调度全部插件（显式指定 channels 时绕过熔断器，便于调试单源）
+    const outcome = await runSearch(plugins, kw, c.env, { skipCircuit: !!channelsParam });
     merged = dedupe(outcome.results);
     sources = outcome.sources;
     if (wantDebug) debug = outcome.debug;

@@ -166,7 +166,10 @@ export const ting77: SearchPlugin = {
           } catch {
             continue;
           }
-          if (!token) break; // 限流，整体放弃
+          if (!token) {
+            ctx?.fail('rate-limited 429'); // 限流，整体放弃并上报熔断器
+            break;
+          }
           if (ctx?.budget && !ctx.budget.take()) break; // go 请求预算
           let location: string | undefined;
           try {

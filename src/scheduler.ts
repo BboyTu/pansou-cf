@@ -12,6 +12,41 @@ export interface SchedulerOutcome {
   debug: string[];
 }
 
+/**
+ * 插件熔断器（借鉴 PanHub pluginHealth 思路，2026-09-07）。
+ *
+ * - 连续失败 ≥ FAIL_THRESHOLD → 熔断 COOLDOWN_MS，期间跳过该插件（省预算提速）
+ * - 冷却到期自动恢复放行（半开），成功即清零；继续失败则再次熔断
+ * - 状态存模块级 Map（Workers 隔离实例级，无需 KV）；显式指定 channels 时可绕过
+ */
+const FAIL_THRESHOLD = 3;
+const COOLDOWN_MS = 5 * 60_000;
+
+interface CircuitState {
+  fails: number;
+  openUntil: number;
+}
+const circuit = new Map<string, CircuitState>();
+
+function recordFailure(name: string): void {
+  const st = circuit.get(name) ?? { fails: 0, openUntil: 0 };
+  st.fails += 1;
+  if (st.fails >= FAIL_THRESHOLD) {
+    st.openUntil = Date.now() + COOLDOWN_MS;
+    st.fails = 0;
+  }
+  circuit.set(name, st);
+}
+
+function recordSuccess(name: string): void {
+  circuit.delete(name);
+}
+
+function isOpen(name: string): boolean {
+  const st = circuit.get(name);
+  return !!st && st.openUntil > Date.now();
+}
+
 /** 子请求预算：Workers 免费版 50 fetch/请求（KV 占 1-2），HTML 详情页共享 30 份额 */
 function makeBudget(total: number): SearchContext['budget'] {
   let left = total;
@@ -42,23 +77,50 @@ export async function runSearch(
   plugins: SearchPlugin[],
   keyword: string,
   env: Env,
+  opts?: { skipCircuit?: boolean },
 ): Promise<SchedulerOutcome> {
   const debug: string[] = [];
-  const ctx: SearchContext = { budget: makeBudget(30), debug };
-  const settled = await Promise.allSettled(plugins.map((p) => p.search(keyword, env, ctx)));
+
+  // 熔断跳过（显式 channels 指定时绕过，便于调试）
+  const active = opts?.skipCircuit
+    ? plugins
+    : plugins.filter((p) => {
+        if (!isOpen(p.name)) return true;
+        debug.push(`circuit-open: ${p.name} skipped`);
+        return false;
+      });
+
+  const budget = makeBudget(30);
+  const settled = await Promise.allSettled(
+    active.map((p) =>
+      p.search(keyword, env, {
+        budget,
+        debug,
+        fail: (reason?: string) => {
+          recordFailure(p.name);
+          if (reason) debug.push(`circuit-fail: ${p.name} ${reason}`);
+        },
+      }),
+    ),
+  );
 
   const results: SearchResult[] = [];
   const sources: Record<string, number> = {};
   const errors: string[] = [];
 
+  // 被熔断跳过的插件也在 sources 里占位为 0（保持渠道数稳定）
+  for (const p of plugins) sources[p.name] = 0;
+
   settled.forEach((outcome, i) => {
-    const plugin = plugins[i];
+    const plugin = active[i];
     if (outcome.status === 'fulfilled') {
       const list = filterInvalid(outcome.value);
       sources[plugin.name] = list.length;
       results.push(...list);
+      if (list.length > 0) recordSuccess(plugin.name);
     } else {
       sources[plugin.name] = 0;
+      recordFailure(plugin.name);
       errors.push(`${plugin.name}: ${String(outcome.reason).slice(0, 200)}`);
       console.error(`[pansou-cf] plugin ${plugin.name} failed: ${outcome.reason}`);
     }

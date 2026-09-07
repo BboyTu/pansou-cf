@@ -47,14 +47,18 @@ export const cyg: SearchPlugin = {
   name: 'cyg',
   priority: 3,
 
-  async search(keyword: string, _env: Env): Promise<SearchResult[]> {
+  async search(keyword: string, _env: Env, ctx?): Promise<SearchResult[]> {
     try {
       const searchUrl = `${BASE}/wp-json/wp/v2/posts?per_page=${PER_PAGE}&search=${encodeURIComponent(keyword)}`;
       const resp = await fetch(searchUrl, {
         headers: { 'User-Agent': 'pansou-cf/0.04', Accept: 'application/json' },
         signal: AbortSignal.timeout(12_000),
       });
-      if (!resp.ok) return [];
+      if (!resp.ok) {
+        // 站点长期 401（v0.04 确认），主动上报供熔断器计数
+        ctx?.fail(`HTTP ${resp.status}`);
+        return [];
+      }
       const posts = (await resp.json()) as WpPost[];
       if (!Array.isArray(posts)) return [];
 
@@ -95,7 +99,8 @@ export const cyg: SearchPlugin = {
         if (s.status === 'fulfilled' && s.value) out.push(s.value);
       }
       return out;
-    } catch {
+    } catch (e) {
+      ctx?.fail(String(e).slice(0, 80));
       return [];
     }
   },
