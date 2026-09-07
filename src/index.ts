@@ -36,6 +36,7 @@ function mergeByType(results: SearchResult[]): Record<string, MergedResultItem[]
 app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
+    deployment: 'workers-builds', // Git 集成部署标记（2026-09-07 迁移）
     auth_enabled: false,
     plugins_enabled: true,
     plugin_count: PLUGINS.length,
