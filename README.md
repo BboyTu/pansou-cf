@@ -120,8 +120,9 @@ dist-web/               # pansou-web 构建产物（已入库，Git 部署需要
 
 1. Fork/导入本仓库到你的 GitHub
 2. **KV 缓存（二选一）**：
-   - 要缓存：创建一个 KV 命名空间（Dashboard → Storage & Databases → KV，或 `npx wrangler kv namespace create CACHE`），把它的 id 替换到 `wrangler.toml` 的 `[[kv_namespaces]]` 里
+   - 要缓存：创建一个**名称为 `pansou`** 的 KV 命名空间（Dashboard → Storage & Databases → KV → Create namespace，或 `npx wrangler kv namespace create pansou`），把它的 id 替换到 `wrangler.toml` 的 `[[kv_namespaces]]` 里并 push
    - 不要缓存：直接删除 `wrangler.toml` 里的 `[[kv_namespaces]]` 段，程序自动降级为直连搜索
+   - ⚠️ 不要在 Worker 的 Settings → Bindings 里手动绑定：本项目是 `wrangler.toml` 声明式部署，手动加的绑定会被下次自动部署覆盖
 3. Cloudflare Dashboard → Workers & Pages → 创建 Worker（或选现有）→ **Settings → Build → Connect Git repository**，选仓库和 `main` 分支
 4. 构建命令留空，部署命令默认 `npx wrangler deploy`（无编译步骤，TS 由 wrangler 直接打包）
 5. 保存后 **push 即自动部署**（构建约 1 分钟）
@@ -136,7 +137,7 @@ npx wrangler login
 npx wrangler deploy
 ```
 
-KV 如需自建：`npx wrangler kv namespace create CACHE`，替换 `wrangler.toml` 中的 id。
+KV 如需自建：`npx wrangler kv namespace create pansou`，把输出的 id 替换 `wrangler.toml` 中的 `[[kv_namespaces]]`。
 
 大陆访问 `*.workers.dev` 域名可能不稳定，建议绑定自定义域名（Workers 控制台 → Settings → Domains & Routes，CF 自动发 SSL）。
 

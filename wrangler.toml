@@ -2,8 +2,8 @@ name = "pansou-cf"
 main = "src/index.ts"
 compatibility_date = "2026-09-06"
 
-# KV 缓存：部署前需自建并替换 id（Dashboard 创建 KV，或 `npx wrangler kv namespace create CACHE`）
-# 不需要缓存可整段删除，程序自动降级为直连搜索
+# KV 缓存：部署者自建一个名为 pansou 的 KV 命名空间（Dashboard 创建，或 `npx wrangler kv namespace create pansou`），
+# 把它的 id 替换到下面；不需要缓存可整段删除，程序自动降级为直连搜索
 [[kv_namespaces]]
 binding = "CACHE"
 id = "b53422454d744d0c8af9d10ec92e06b5"
