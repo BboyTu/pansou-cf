@@ -6,6 +6,7 @@
  */
 
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { Env, MergedResultItem, SearchResponse, SearchResult } from './types';
 import { PLUGINS, CHANNELS } from './plugins/registry';
 import { runSearch, dedupe } from './scheduler';
@@ -63,22 +64,17 @@ app.post('/api/check/links', (c) => {
   return c.json({ code: 0, message: 'ok', data: { results: [] } });
 });
 
-/**
- * 网盘/磁力链搜索（PanSou 协议兼容）
- *
- * Query:
- *   - kw          (required) 搜索关键词
- *   - channels    (optional) 逗号分隔渠道过滤，如 "apibay,pansearch"；默认全部
- *   - plugins     (optional) 同 channels（原版协议别名）
- *   - cloud_types (optional) 逗号分隔网盘类型过滤，如 "quark,magnet"
- *   - refresh     (optional) "true" 跳过聚合缓存强制刷新
- *   - res / src / ext (optional) 原版协议参数，免费版接受但忽略
- */
-app.get('/api/search', async (c) => {
-  const kw = (c.req.query('kw') ?? '').trim();
-  const channelsParam = (c.req.query('channels') ?? c.req.query('plugins') ?? '').trim();
-  const cloudTypesParam = (c.req.query('cloud_types') ?? '').trim();
-  const refresh = c.req.query('refresh') === 'true';
+/** 搜索参数（GET query 与 POST body 共用） */
+interface SearchParams {
+  kw: string;
+  channelsParam: string;
+  cloudTypesParam: string;
+  refresh: boolean;
+  wantDebug: boolean;
+}
+
+async function doSearch(c: Context<{ Bindings: Env }>, p: SearchParams): Promise<Response> {
+  const { kw, channelsParam, cloudTypesParam, refresh, wantDebug } = p;
 
   if (!kw) {
     return c.json<SearchResponse>(
@@ -91,10 +87,10 @@ app.get('/api/search', async (c) => {
   let plugins = PLUGINS;
   if (channelsParam) {
     const wanted = new Set(channelsParam.split(',').map((s) => s.trim()).filter(Boolean));
-    const filtered = PLUGINS.filter((p) => wanted.has(p.name));
+    const filtered = PLUGINS.filter((p2) => wanted.has(p2.name));
     if (filtered.length > 0) plugins = filtered;
   }
-  const channelKey = plugins.map((p) => p.name).sort().join(',');
+  const channelKey = plugins.map((p2) => p2.name).sort().join(',');
 
   // 聚合缓存
   const cacheKey = aggKey(kw, channelKey);
@@ -102,7 +98,6 @@ app.get('/api/search', async (c) => {
   let cached = false;
   let sources: Record<string, number> | undefined;
   let debug: string[] | undefined;
-  const wantDebug = c.req.query('debug') === '1';
   const cacheHit = !refresh && c.env.CACHE ? await getJSON<SearchResult[]>(c.env, cacheKey) : null;
   if (cacheHit) {
     merged = cacheHit;
@@ -138,6 +133,59 @@ app.get('/api/search', async (c) => {
       ...(sources ? { sources } : {}),
       ...(debug && debug.length > 0 ? { debug } : {}),
     },
+  });
+}
+
+/** 把任意值（string | string[] | undefined）转成逗号分隔字符串 */
+function toCsv(v: unknown): string {
+  if (Array.isArray(v)) return v.filter((x) => typeof x === 'string').join(',');
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+/**
+ * GET /api/search
+ *
+ * Query:
+ *   - kw          (required) 搜索关键词
+ *   - channels    (optional) 逗号分隔渠道过滤，如 "apibay,pansearch"；默认全部
+ *   - plugins     (optional) 同 channels（原版协议别名）
+ *   - cloud_types (optional) 逗号分隔网盘类型过滤，如 "quark,magnet"
+ *   - refresh     (optional) "true" 跳过聚合缓存强制刷新
+ *   - res / src / ext (optional) 原版协议参数，免费版接受但忽略
+ */
+app.get('/api/search', async (c) => {
+  return doSearch(c, {
+    kw: (c.req.query('kw') ?? '').trim(),
+    channelsParam: (c.req.query('channels') ?? c.req.query('plugins') ?? '').trim(),
+    cloudTypesParam: (c.req.query('cloud_types') ?? '').trim(),
+    refresh: c.req.query('refresh') === 'true',
+    wantDebug: c.req.query('debug') === '1',
+  });
+});
+
+/**
+ * POST /api/search（原版 PanSou 协议；MoonTVPlus 等客户端走 JSON body）
+ *
+ * Body:
+ *   - kw / keyword (required) 搜索关键词
+ *   - channels     (optional) string | string[]
+ *   - cloud_types  (optional) string | string[]
+ *   - refresh      (optional) boolean
+ *   - res / src / ext (optional) 接受但忽略
+ */
+app.post('/api/search', async (c) => {
+  let body: Record<string, unknown> = {};
+  try {
+    body = await c.req.json();
+  } catch {
+    // 空 body 或非 JSON 时退化为空参数，走 400
+  }
+  return doSearch(c, {
+    kw: String(body.kw ?? body.keyword ?? '').trim(),
+    channelsParam: toCsv(body.channels ?? body.plugins),
+    cloudTypesParam: toCsv(body.cloud_types),
+    refresh: body.refresh === true || body.force_refresh === true,
+    wantDebug: body.debug === true,
   });
 });
 
