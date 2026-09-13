@@ -104,16 +104,21 @@ async function doSearch(c: Context<{ Bindings: Env }>, p: SearchParams): Promise
     cached = true;
   } else {
     // 并发调度全部插件（显式指定 channels 时绕过熔断器，便于调试单源）
-    // 软截止 8s：慢源不拖垮整体响应（前端 axios 超时 10s，留 2s 余量）
+    // 软截止 6s：慢源不拖垮整体响应（前端 axios 超时 10s，留足余量）
     const outcome = await runSearch(plugins, kw, c.env, {
       skipCircuit: !!channelsParam,
-      deadlineMs: 8000,
+      deadlineMs: 6000,
     });
     merged = dedupe(outcome.results);
     sources = outcome.sources;
     if (wantDebug) debug = outcome.debug;
-    // 写缓存（KV 缺失时 putJSON 内部直接跳过）
-    await putJSON(c.env, cacheKey, merged);
+    // 写缓存不阻塞响应（KV 写入耗时不计入用户等待）；无 waitUntil 时退化为异步 fire-and-forget
+    const writePromise = putJSON(c.env, cacheKey, merged).catch(() => {});
+    try {
+      c.executionCtx.waitUntil(writePromise);
+    } catch {
+      void writePromise;
+    }
   }
 
   // 网盘类型过滤（cloud_types）
