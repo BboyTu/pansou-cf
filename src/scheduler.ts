@@ -77,7 +77,7 @@ export async function runSearch(
   plugins: SearchPlugin[],
   keyword: string,
   env: Env,
-  opts?: { skipCircuit?: boolean },
+  opts?: { skipCircuit?: boolean; deadlineMs?: number },
 ): Promise<SchedulerOutcome> {
   const debug: string[] = [];
 
@@ -90,41 +90,62 @@ export async function runSearch(
         return false;
       });
 
-  const budget = makeBudget(30);
-  const settled = await Promise.allSettled(
-    active.map((p) =>
-      p.search(keyword, env, {
-        budget,
-        debug,
-        fail: (reason?: string) => {
-          recordFailure(p.name);
-          if (reason) debug.push(`circuit-fail: ${p.name} ${reason}`);
-        },
-      }),
-    ),
-  );
-
   const results: SearchResult[] = [];
   const sources: Record<string, number> = {};
   const errors: string[] = [];
+  const done = new Set<string>();
+  let timedOut = false;
 
   // 被熔断跳过的插件也在 sources 里占位为 0（保持渠道数稳定）
   for (const p of plugins) sources[p.name] = 0;
 
-  settled.forEach((outcome, i) => {
-    const plugin = active[i];
-    if (outcome.status === 'fulfilled') {
-      const list = filterInvalid(outcome.value);
-      sources[plugin.name] = list.length;
+  const budget = makeBudget(30);
+  const ctxFor = (name: string): SearchContext => ({
+    budget,
+    debug,
+    fail: (reason?: string) => {
+      recordFailure(name);
+      if (reason) debug.push(`circuit-fail: ${name} ${reason}`);
+    },
+  });
+
+  // 插件各自完成后立即写入结果（软截止时间到达时已完成的自然保留）
+  const tasks = active.map(async (p) => {
+    try {
+      const list = filterInvalid(await p.search(keyword, env, ctxFor(p.name)));
+      sources[p.name] = list.length;
       results.push(...list);
-      if (list.length > 0) recordSuccess(plugin.name);
-    } else {
-      sources[plugin.name] = 0;
-      recordFailure(plugin.name);
-      errors.push(`${plugin.name}: ${String(outcome.reason).slice(0, 200)}`);
-      console.error(`[pansou-cf] plugin ${plugin.name} failed: ${outcome.reason}`);
+      done.add(p.name);
+      if (list.length > 0) recordSuccess(p.name);
+    } catch (e) {
+      sources[p.name] = 0;
+      done.add(p.name);
+      recordFailure(p.name);
+      errors.push(`${p.name}: ${String(e).slice(0, 200)}`);
+      console.error(`[pansou-cf] plugin ${p.name} failed: ${e}`);
     }
   });
+
+  // 软截止：慢源不再拖累整体响应（原版 PanSou 的"尽快响应"思路）
+  // 超时后未完成的插件被记录并从结果中排除，请求结束后其后续动作随响应一起结束。
+  const deadlineMs = opts?.deadlineMs ?? 0;
+  if (deadlineMs > 0) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<void>((resolve) => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        resolve();
+      }, deadlineMs);
+    });
+    await Promise.race([Promise.all(tasks), timeout]);
+    if (timer) clearTimeout(timer);
+    if (timedOut) {
+      const pending = active.filter((p) => !done.has(p.name)).map((p) => p.name);
+      if (pending.length > 0) debug.push(`deadline ${deadlineMs}ms hit, pending: ${pending.join(',')}`);
+    }
+  } else {
+    await Promise.all(tasks);
+  }
 
   return { results, sources, errors, debug };
 }

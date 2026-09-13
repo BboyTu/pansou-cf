@@ -104,7 +104,11 @@ async function doSearch(c: Context<{ Bindings: Env }>, p: SearchParams): Promise
     cached = true;
   } else {
     // 并发调度全部插件（显式指定 channels 时绕过熔断器，便于调试单源）
-    const outcome = await runSearch(plugins, kw, c.env, { skipCircuit: !!channelsParam });
+    // 软截止 8s：慢源不拖垮整体响应（前端 axios 超时 10s，留 2s 余量）
+    const outcome = await runSearch(plugins, kw, c.env, {
+      skipCircuit: !!channelsParam,
+      deadlineMs: 8000,
+    });
     merged = dedupe(outcome.results);
     sources = outcome.sources;
     if (wantDebug) debug = outcome.debug;

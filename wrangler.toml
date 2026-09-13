@@ -10,7 +10,7 @@ id = "b53422454d744d0c8af9d10ec92e06b5"
 
 [vars]
 ENV = "production"
-VERSION = "v0.09"
+VERSION = "v0.10"
 
 # 静态前端（pansou-web 构建产物，见 scripts/build-web.sh）
 [assets]
